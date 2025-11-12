@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Edit, Trash2, CheckCircle, Plus } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 
 interface VehicleLog {
     id: number;
@@ -10,6 +11,7 @@ interface VehicleLog {
     carModel: string;
     carType: string;
     color: string;
+    plateNumber: string;
     seatNumber: string;
     ac: string;
     pictures: string[];
@@ -34,8 +36,7 @@ interface Driver {
 }
 
 export default function DriverProfilePageUi() {
-    const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
-
+   
     const driver: Driver = {
         id: 1,
         driverName: "Prince Martins",
@@ -49,6 +50,7 @@ export default function DriverProfilePageUi() {
                 carType: "Sedan",
                 carModel: "Accord",
                 color: "Gray",
+                plateNumber: "ABC788",
                 seatNumber: "4",
                 ac: "No",
                 pictures: [
@@ -63,6 +65,7 @@ export default function DriverProfilePageUi() {
                 carModel: "Camrey",
                 carType: "SUV",
                 color: "Blue",
+                plateNumber: "DDCV7788",
                 seatNumber: "5",
                 ac: "yes",
                 pictures: [
@@ -101,6 +104,7 @@ export default function DriverProfilePageUi() {
         carModel: "",
         carType: "",
         color: "",
+        plateNumber: "",
         seatNumber: "",
         ac: "",
         pictures: [] as string[],
@@ -158,6 +162,7 @@ export default function DriverProfilePageUi() {
             carModel: newCar.carModel,
             carType: newCar.carType,
             color: newCar.color,
+            plateNumber: newCar.plateNumber,
             seatNumber: newCar.seatNumber,
             ac: newCar.ac,
             pictures: Object.values(preview), // Use uploaded images
@@ -174,6 +179,7 @@ export default function DriverProfilePageUi() {
             carModel: "",
             carType: "",
             color: "",
+            plateNumber: "",
             seatNumber: "",
             ac: "",
             pictures: [],
@@ -290,6 +296,7 @@ export default function DriverProfilePageUi() {
             {/* Cars Section */}
             <div className="mt-6 bg-white shadow-md rounded-2xl px-4 py-6 sm:p-6">
 
+                {/* Number if cars added */}
                 <div className="flex items-center justify-between mb-3">
                     <div>
                         <h3 className="text-lg font-semibold">My Cars</h3>
@@ -362,6 +369,16 @@ export default function DriverProfilePageUi() {
                         />
 
                         <input
+                            type="text"
+                            name="plateNumber"
+                            placeholder="Car Plate-Number"
+                            required
+                            value={newCar.plateNumber}
+                            onChange={handleChange}
+                            className="outline-blue-700 w-full border p-2 rounded"
+                        />
+
+                        <input
                             type="number"
                             name="seatNumber"
                             placeholder="Number of Passengers"
@@ -390,7 +407,7 @@ export default function DriverProfilePageUi() {
                             {["carFront", "carSide", "carInterior", "carBack"].map((key) => (
                                 <div
                                     key={key}
-                                    className="border bg-gray-200 rounded p-1 py-2 sm:p-4"
+                                    className="sm:w-full border bg-gray-200 rounded p-1 py-2 sm:p-4"
                                 >
                                     <p className="text-sm font-semibold">
                                         {key.replace("car", "")} View
@@ -402,10 +419,12 @@ export default function DriverProfilePageUi() {
                                         onChange={handleFileChange}
                                     />
                                     {preview[key] && (
-                                        <img
+                                        <Image
+                                            width={200}
+                                            height={200}
                                             src={preview[key]}
                                             alt={`${key} Preview`}
-                                            className="w-full mt-2 rounded-md"
+                                            className="w-full mt-2 rounded-md object-cover"
                                         />
                                     )}
                                 </div>
@@ -432,29 +451,29 @@ export default function DriverProfilePageUi() {
                 )}
 
                 {/* ✅ Car List with Side-by-Side Images */}
-                <div className="space-y-6">
+                <div className="space-y-8">
                     {cars.map((car) => (
                         <div
                             key={car.id}
-                            className="p-4 rounded-lg bg-gray-100"
+                            className=" rounded-lg bg-gray-100"
                         >
                             <div className="flex flex-col lg:flex-row gap-6">
                                 {/* Car Images Section */}
                                 <div className="flex-1">
                                     <div className="mb-3">
-                                        <h4 className="font-semibold text-lg mb-2">{car.carMake} {car.carModel}</h4>
+                                        <h4 className="px-4 py-2 font-semibold text-blue-800 text-lg mb-2">{car.carMake} {car.carModel}</h4>
                                         {/* Main Selected Image */}
-                                        <div className="mb-3">
+                                        <div className="p-1 mb-3">
                                             <Image
                                                 width={500}
                                                 height={500}
                                                 src={selectedCarImages[car.id] || car.pictures[0]}
                                                 alt={`${car.carMake} ${car.carModel}`}
-                                                className="w-full sm:h-64 object-cover rounded-lg"
+                                                className="w-full object-cover rounded"
                                             />
                                         </div>
                                         {/* Thumbnail Images Side by Side */}
-                                        <div className="flex gap-2 overflow-x-auto">
+                                        <div className="p-4 flex gap-2 overflow-x-auto">
                                             {car.pictures.map((picture, index) => (
                                                 <div
                                                     key={index}
@@ -479,13 +498,17 @@ export default function DriverProfilePageUi() {
                                 </div>
 
                                 {/* Car Details Section */}
-                                <div className="flex-1">
+                                <div className="flex-1 p-4">
                                     <div className="mb-4">
-                                        <h4 className="font-semibold text-lg mb-2">Car Details</h4>
-                                        <div className="grid grid-cols-2 gap-2">
+                                        <h4 className="font-semibold text-blue-800 text-lg mb-2">Car Details</h4>
+                                        <div className="grid grid-cols-2 sm:gap-2">
                                             <div className="flex justify-left items-center gap-2">
-                                                <p className="font-semibold">Make & Model:</p>
-                                                <small className="text-gray-700">{car.carMake} {car.carModel}</small>
+                                                <p className="font-semibold">Make:</p>
+                                                <small className="text-gray-700">{car.carMake}</small>
+                                            </div>
+                                            <div className="flex justify-left items-center gap-2">
+                                                <p className="font-semibold">Model:</p>
+                                                <small className="text-gray-700">{car.carModel}</small>
                                             </div>
                                             <div className="flex justify-left items-center gap-2">
                                                 <p className="font-semibold">Type:</p>
@@ -546,13 +569,14 @@ export default function DriverProfilePageUi() {
                         </div>
                     ))}
                 </div>
+                
             </div>
 
             {/* Complaint Button */}
             <div className="mt-6 text-center">
-                <button className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700">
+                <Link href={"mailto:nomopoventures@yahoo.com"} className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700">
                     Report / Complain
-                </button>
+                </Link>
             </div>
         </div>
     );
