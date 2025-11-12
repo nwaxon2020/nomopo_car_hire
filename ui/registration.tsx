@@ -7,29 +7,20 @@ export default function DriverRegisterPageUi() {
   const router = useRouter();
 
   const [driver, setDriver] = useState({
-    fullName: "",
+    firstName: "",
+    lastName: "",
     email: "",
     password: "",
     confirmPassword: "",
     phone: "",
     profileImage: null as File | null,
+    validIdNumber: "",
     idImage: null as File | null,
-    carFront: null as File | null,
-    carSide: null as File | null,
-    carInterior: null as File | null,
-    carMake: "",
-    carModel: "",
-    carType: "",
-    carColor: "",
-    passengerCount: "",
   });
 
   const [preview, setPreview] = useState({
     profileImage: "",
     idImage: "",
-    carFront: "",
-    carSide: "",
-    carInterior: "",
   });
 
   const [message, setMessage] = useState<{ type: "success" | "error" | ""; text: string }>({
@@ -108,21 +99,15 @@ export default function DriverRegisterPageUi() {
     e.preventDefault();
 
     if (
-        !driver.fullName ||
+        !driver.firstName ||
+        !driver.lastName ||
         !driver.email ||
         !driver.password ||
         !driver.confirmPassword ||
         !driver.phone ||
         !driver.profileImage||
-        !driver.idImage ||
-        !driver.carFront ||
-        !driver.carSide ||
-        !driver.carInterior ||
-        !driver.carMake ||
-        !driver.carModel ||
-        !driver.carType ||
-        !driver.carColor ||
-        !driver.passengerCount
+        !driver.validIdNumber ||
+        !driver.idImage
     ) {
         window.scrollTo({top: 0, behavior: "smooth"})
         setMessage({ type: "error", text: "Please fill in all required fields including profile image." });
@@ -198,12 +183,22 @@ export default function DriverRegisterPageUi() {
 
           {/* Personal Info */}
 
-          {/* Driver full name input */}
+          {/* Driver first name input */}
           <input
             type="text"
-            name="fullName"
-            placeholder="Full Name"
-            value={driver.fullName}
+            name="firstName"
+            placeholder="First Name"
+            value={driver.firstName}
+            onChange={handleChange}
+            className="outline-blue-700 w-full border p-2 rounded"
+          />
+
+          {/* Driver last name input */}
+          <input
+            type="text"
+            name="lastName"
+            placeholder="Last Name"
+            value={driver.lastName}
             onChange={handleChange}
             className="outline-blue-700 w-full border p-2 rounded"
           />
@@ -261,6 +256,19 @@ export default function DriverRegisterPageUi() {
             </div>
           )}
 
+          <h3 className="font-semibold mt-3 mb-1">Valid ID info Required</h3>
+
+          {/* Valid number input */}
+          <input
+            type="text"
+            name="validIdNumber"
+            placeholder="Valid ID Number"
+            value={driver.validIdNumber}
+            onChange={handleChange}
+            className="outline-blue-700 w-full border p-2 rounded"
+          />
+
+
           {/* ID Upload */}
           <div className="border rounded p-2 bg-gray-200">
             <label className="block text-gray-700 mb-1">Valid ID Image</label>
@@ -268,84 +276,6 @@ export default function DriverRegisterPageUi() {
             {preview.idImage && (
               <img src={preview.idImage} alt="ID Preview" className="w-32 mt-2 rounded-md" />
             )}
-          </div>
-
-          {/* Car Info */}
-          <h3 className="text-lg font-semibold mt-6 text-gray-800">Car Information</h3>
-
-          {/* Car Make Input */}
-          <input
-            type="text"
-            name="carMake"
-            placeholder="Car Make (e.g. Toyota)"
-            value={driver.carMake}
-            onChange={handleChange}
-            className="outline-blue-700 w-full border p-2 rounded"
-          />
-
-          {/* Car Model input */}
-          <input
-            type="text"
-            name="carModel"
-            placeholder="Car Model (e.g. Corolla)"
-            value={driver.carModel}
-            onChange={handleChange}
-            className="outline-blue-700 w-full border p-2 rounded"
-          />
-
-          {/* Car Type input Select */}
-          <select
-            name="carType"
-            value={driver.carType}
-            onChange={handleChange}
-            className="outline-blue-700 w-full border p-2 rounded"
-            required
-          >
-            <option value="">Select Car Type</option>
-            <option value="sedan">Sedan</option>
-            <option value="suv">SUV</option>
-            <option value="bus">Bus</option>
-            <option value="car">Car</option>
-            <option value="loadingVan">Loading Van</option>
-            <option value="keke">Keke</option>
-          </select>
-          
-          {/* Car Color input */}
-          <input
-            type="text"
-            name="carColor"
-            placeholder="Car Color"
-            value={driver.carColor}
-            onChange={handleChange}
-            className="outline-blue-700 w-full border p-2 rounded"
-          />
-
-          {/* Car passenger number input */}
-          <input
-            type="number"
-            name="passengerCount"
-            placeholder="Number of Passengers"
-            value={driver.passengerCount}
-            onChange={handleChange}
-            className="outline-blue-700 w-full border p-2 rounded"
-          />
-
-          {/* Car Images */}
-          <h3 className="text-lg font-semibold mt-6 text-gray-800">Upload Car Images</h3>
-          <div className="grid sm:grid-cols-3 gap-4">
-            {["carFront", "carSide", "carInterior"].map((key) => (
-              <div key={key} className="border bg-gray-200 rounded p-1 py-2 sm:p-4">
-                <p className="text-sm font-semibold">{key.replace("car", "")} View</p>
-                <input type="file" name={key} accept="image/*" onChange={handleFileChange}/>
-                {preview[key as keyof typeof preview] && (
-                  <img
-                    src={preview[key as keyof typeof preview]}
-                    alt={`${key} Preview`}
-                    className="w-full mt-2 rounded-md"
-                  />
-                )}
-              </div>
-            ))}
           </div>
 
           {/* Submit */}

@@ -407,7 +407,7 @@ export default function DriverProfilePageUi() {
                             {["carFront", "carSide", "carInterior", "carBack"].map((key) => (
                                 <div
                                     key={key}
-                                    className="sm:w-full border bg-gray-200 rounded p-1 py-2 sm:p-4"
+                                    className="w-75 sm:w-full border bg-gray-200 rounded p-1 py-2 sm:p-4"
                                 >
                                     <p className="text-sm font-semibold">
                                         {key.replace("car", "")} View
