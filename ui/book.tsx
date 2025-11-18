@@ -277,8 +277,8 @@ export default function BookCarUi(){
                         >
                             <p>Select a Car</p> 
                             {driverCard ? 
-                                <span className="mr-2 text-left text-gray-500 font-semibold">{"⮝"}</span> :
-                                <span className="mr-2 text-left text-gray-500 font-semibold">{"⮟"}</span>
+                                <span className="mr-2 text-left text-gray-500 font-semibold"><i className="fa fa-caret-up" style={{fontSize:"25px"}}></i></span> :
+                                <span className="mr-2 text-left text-gray-500 font-semibold"><i className="fa fa-caret-down" style={{fontSize:"25px"}}></i></span>
                             }
                         </div>
 

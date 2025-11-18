@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 //import { sendPasswordResetEmail } from "firebase/auth";
 //import { auth } from "@/firebaseConfig";
 
@@ -44,7 +45,7 @@ export default function ForgotPasswordPageUi() {
           </div>
         )}
 
-        <form onSubmit={handleResetPassword} className="space-y-4">
+        <form onSubmit={handleResetPassword} className="text-center space-y-4">
           <input
             type="email"
             placeholder="Enter your email address"
@@ -60,6 +61,8 @@ export default function ForgotPasswordPageUi() {
           >
             Send Reset Link
           </button>
+
+          <Link className="text-gray-600 p-3 font-semibold underline" href={"/login"}>Back</Link>
         </form>
       </div>
     </div>
