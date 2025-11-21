@@ -1,10 +1,18 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+
+import { auth, googleProvider, db, storage } from "../lib/firebaseConfig";
+import { createUserWithEmailAndPassword, signInWithPopup, sendEmailVerification } from "firebase/auth";
+import { setDoc, doc } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 export default function DriverRegisterPageUi() {
   const router = useRouter();
+
+  // Password regex (8 chars minimum, must contain letters + numbers)
+  const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/;
 
   const [driver, setDriver] = useState({
     firstName: "",
@@ -16,6 +24,8 @@ export default function DriverRegisterPageUi() {
     profileImage: null as File | null,
     validIdNumber: "",
     idImage: null as File | null,
+    isGoogleUser: false,
+    googleUid: "",
   });
 
   const [preview, setPreview] = useState({
@@ -29,36 +39,29 @@ export default function DriverRegisterPageUi() {
   });
 
   const [passwordError, setPasswordError] = useState("");
-
   const [phoneError, setPhoneError] = useState("");
 
-  // Load saved form data from localStorage
+  // Restore saved form data
   useEffect(() => {
-    const savedData = localStorage.getItem("driverFormData");
-    if (savedData) {
-      const parsed = JSON.parse(savedData);
-      setDriver((prev) => ({ ...prev, ...parsed }));
-    }
+    const saved = localStorage.getItem("driverFormData");
+    if (saved) setDriver((prev) => ({ ...prev, ...JSON.parse(saved) }));
   }, []);
 
-  // Save form data whenever it changes (excluding file objects)
+  // Save form data on every change
   useEffect(() => {
-    const { password, confirmPassword, ...rest } = driver;
-    const dataToSave = {
-      ...rest,
-      password,
-      confirmPassword,
-    };
-    localStorage.setItem("driverFormData", JSON.stringify(dataToSave));
+    const { ...rest } = driver;
+    localStorage.setItem("driverFormData", JSON.stringify(rest));
   }, [driver]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setDriver((prev) => ({ ...prev, [name]: value }));
 
-    // Password match check
+    // Password match + regex validation
     if (name === "password" || name === "confirmPassword") {
-      if (
+      if (!passwordRegex.test(driver.password || value)) {
+        setPasswordError("Password must be at least 8 characters and include letters and numbers.");
+      } else if (
         (name === "confirmPassword" && value !== driver.password) ||
         (name === "password" && driver.confirmPassword && value !== driver.confirmPassword)
       ) {
@@ -68,7 +71,7 @@ export default function DriverRegisterPageUi() {
       }
     }
 
-    // Phone number check for +234
+    // Phone number rule
     if (name === "phone") {
       if (value.startsWith("+234") || value.startsWith("+")) {
         setPhoneError("Please do not include Country code in your phone number.");
@@ -95,51 +98,111 @@ export default function DriverRegisterPageUi() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Google sign-in
+  const handleGoogleSignIn = async () => {
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+
+      setDriver((prev) => ({
+        ...prev,
+        email: user.email || prev.email,
+        firstName: prev.firstName || user.displayName?.split(" ")[0] || "",
+        lastName: prev.lastName || user.displayName?.split(" ")[1] || "",
+        googleUid: user.uid,
+        isGoogleUser: true,
+      }));
+
+      setMessage({ type: "success", text: "Google sign-in successful. Continue filling the form." });
+    } catch {
+      setMessage({ type: "error", text: "Google sign-in failed." });
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (
-        !driver.firstName ||
-        !driver.lastName ||
-        !driver.email ||
-        !driver.password ||
-        !driver.confirmPassword ||
-        !driver.phone ||
-        !driver.profileImage||
-        !driver.validIdNumber ||
-        !driver.idImage
-    ) {
-        window.scrollTo({top: 0, behavior: "smooth"})
-        setMessage({ type: "error", text: "Please fill in all required fields including profile image." });
-        return;
+    if (!driver.firstName || !driver.lastName || !driver.phone || !driver.validIdNumber) {
+      setMessage({ type: "error", text: "Please fill in all required fields." });
+      return;
     }
 
-    if (driver.password !== driver.confirmPassword) {
-        setMessage({ type: "error", text: "Passwords do not match." });
-        return;
+    if (!driver.profileImage || !driver.idImage) {
+      setMessage({ type: "error", text: "Profile image and ID image are required." });
+      return;
     }
 
-    window.scrollTo({top: 0, behavior: "smooth"})
+    let userUid = driver.googleUid;
 
-    setMessage({
-        type: "success",
-        text: "Registration successful! You’ll be verified within 72 hours.",
-    });
+    try {
+      if (!driver.isGoogleUser) {
+        // Email / password validation
+        if (!driver.email || !driver.password || !driver.confirmPassword) {
+          setMessage({ type: "error", text: "Email and passwords are required." });
+          return;
+        }
 
-    // Clear localStorage on success
-    localStorage.removeItem("driverFormData");
+        if (!passwordRegex.test(driver.password)) {
+          setMessage({ type: "error", text: "Password must be 8+ characters and include letters + numbers." });
+          return;
+        }
 
-    setTimeout(() => router.push("/login"), 2500);
+        if (driver.password !== driver.confirmPassword) {
+          setMessage({ type: "error", text: "Passwords do not match." });
+          return;
+        }
+
+        const userCredential = await createUserWithEmailAndPassword(auth, driver.email, driver.password);
+        userUid = userCredential.user.uid;
+
+        await sendEmailVerification(userCredential.user);
+
+        setMessage({
+          type: "success",
+          text: "Registration successful! Please verify your email before logging in.",
+        });
+      }
+
+      // Upload images
+      const profileRef = ref(storage, `drivers/${userUid}/profile.jpg`);
+      const idRef = ref(storage, `drivers/${userUid}/id.jpg`);
+
+      await uploadBytes(profileRef, driver.profileImage!);
+      await uploadBytes(idRef, driver.idImage!);
+
+      const profileURL = await getDownloadURL(profileRef);
+      const idURL = await getDownloadURL(idRef);
+
+      // Save Firestore
+      await setDoc(doc(db, "drivers", userUid), {
+        firstName: driver.firstName,
+        lastName: driver.lastName,
+        email: driver.email,
+        phone: driver.phone,
+        validIdNumber: driver.validIdNumber,
+        profileImage: profileURL,
+        idImage: idURL,
+        createdAt: new Date(),
+        verified: false,
+        authMethod: driver.isGoogleUser ? "google" : "email",
+      });
+
+      localStorage.removeItem("driverFormData");
+      setMessage({ type: "success", text: "Registration successful!" });
+
+      setTimeout(() => router.push("/login"), 2000);
+    } catch {
+      setMessage({ type: "error", text: "Registration failed. Please try again." });
+    }
   };
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-2 sm:p-6">
-      <div className="bg-white shadow-lg rounded-2xl p-8 w-full max-w-2xl">
+      <div className="my-6 bg-white shadow-lg rounded-2xl p-8 w-full max-w-2xl">
         <h2 className="text-2xl font-semibold text-center mb-6 text-gray-600">
           Driver Registration
         </h2>
 
-        {/* Global Message */}
         {message.text && (
           <div
             className={`mb-4 p-3 text-center rounded-md font-medium ${
@@ -170,6 +233,7 @@ export default function DriverRegisterPageUi() {
                 </div>
               )}
             </label>
+
             <input
               type="file"
               id="profileImage"
@@ -178,121 +242,63 @@ export default function DriverRegisterPageUi() {
               className="hidden"
               onChange={handleFileChange}
             />
+
             <small className="text-red-500 mt-1">* Required</small>
           </div>
 
-          {/* Personal Info */}
+          {/* First + Last Names */}
+          <input type="text" name="firstName" placeholder="First Name" value={driver.firstName} onChange={handleChange} className="outline-blue-700 w-full border p-2 rounded" />
+          <input type="text" name="lastName" placeholder="Last Name" value={driver.lastName} onChange={handleChange} className="outline-blue-700 w-full border p-2 rounded" />
 
-          {/* Driver first name input */}
-          <input
-            type="text"
-            name="firstName"
-            placeholder="First Name"
-            value={driver.firstName}
-            onChange={handleChange}
-            className="outline-blue-700 w-full border p-2 rounded"
-          />
+          {/* Phone */}
+          <small className="text-black bg-gray-100 p-1 rounded">
+            <span className="font-bold">WhatsApp number</span> is required for easy communication
+          </small>
 
-          {/* Driver last name input */}
-          <input
-            type="text"
-            name="lastName"
-            placeholder="Last Name"
-            value={driver.lastName}
-            onChange={handleChange}
-            className="outline-blue-700 w-full border p-2 rounded"
-          />
+          {phoneError && <div className="text-red-600 text-sm">{phoneError}</div>}
 
-          {/* Email input */}
-          <input
-            type="email"
-            name="email"
-            placeholder="Email"
-            value={driver.email}
-            onChange={handleChange}
-            className="outline-blue-700 w-full border p-2 rounded"
-          />
+          <input type="tel" name="phone" placeholder="Phone Number" value={driver.phone} onChange={handleChange} className="outline-blue-700 w-full border p-2 rounded" />
 
-          {/* Phone Number input */}
-          <small className="text-black bg-gray-100 p-1 rounded"><span className="font-bold">WhatsApp number</span> is required for easy comunication with customers</small>
-          
-          {phoneError && (
-              <div className="my-[5px] text-red-600 text-sm mt-1">
-                {phoneError}
-              </div>
-            )
-          }
-          <input
-            type="tel"
-            name="phone"
-            placeholder="Phone Number"
-            value={driver.phone}
-            onChange={handleChange}
-            className="outline-blue-700 w-full border p-2 rounded"
-          />
+          {/* ID Number */}
+          <h3 className="font-semibold mt-6 mb-1">Valid ID info Required</h3>
+          <input type="text" name="validIdNumber" placeholder="Valid ID Number" value={driver.validIdNumber} onChange={handleChange} className="outline-blue-700 w-full border p-2 rounded" />
 
-          {/* Password input */}
-          <input
-            type="password"
-            name="password"
-            placeholder="Password"
-            value={driver.password}
-            onChange={handleChange}
-            className="outline-blue-700 w-full border p-2 rounded"
-          />
-          <input
-            type="password"
-            name="confirmPassword"
-            placeholder="Confirm Password"
-            value={driver.confirmPassword}
-            onChange={handleChange}
-            className="outline-blue-700 w-full border p-2 rounded"
-          />
-
-          {/* Password mismatch */}
-          {passwordError && (
-            <div className="bg-red-600 text-white text-center py-2 rounded-md text-sm">
-              {passwordError}
-            </div>
-          )}
-
-          <h3 className="font-semibold mt-3 mb-1">Valid ID info Required</h3>
-
-          {/* Valid number input */}
-          <input
-            type="text"
-            name="validIdNumber"
-            placeholder="Valid ID Number"
-            value={driver.validIdNumber}
-            onChange={handleChange}
-            className="outline-blue-700 w-full border p-2 rounded"
-          />
-
-
-          {/* ID Upload */}
+          {/* ID Image */}
           <div className="border rounded p-2 bg-gray-200">
             <label className="block text-gray-700 mb-1">Valid ID Image</label>
             <input type="file" name="idImage" accept="image/*" onChange={handleFileChange} />
-            {preview.idImage && (
-              <img src={preview.idImage} alt="ID Preview" className="w-32 mt-2 rounded-md" />
-            )}
+            {preview.idImage && <img src={preview.idImage} alt="ID Preview" className="w-32 mt-2 rounded-md" />}
           </div>
 
-          {/* Submit */}
-          <button
-            type="submit"
-            className="font-semibold w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700"
-          >
+          {/* Google Sign In */}
+          <div className="mt-6 mb-1 flex justify-between items-center">
+            <h3 className="font-semibold">Create Login</h3>
+            <button onClick={handleGoogleSignIn} type="button" className="bg-green-600 text-sm text-white rounded-md p-2 border-none">
+              Sign in with Google
+            </button>
+          </div>
+
+          {/* Email + Password */}
+          <input type="email" name="email" placeholder="Email" value={driver.email} onChange={handleChange} className="outline-blue-700 w-full border p-2 rounded" />
+
+          {passwordError && <div className="bg-red-600 text-white text-center py-2 rounded-md text-sm">{passwordError}</div>}
+
+          <input type="password" name="password" placeholder="Password" value={driver.password} onChange={handleChange} className="outline-blue-700 w-full border p-2 rounded" />
+
+          <p className="text-xs text-gray-500 -mt-1">
+            Must be 8+ characters and include letters + numbers.
+          </p>
+
+          <input type="password" name="confirmPassword" placeholder="Confirm Password" value={driver.confirmPassword} onChange={handleChange} className="outline-blue-700 w-full border p-2 rounded" />
+
+          <button type="submit" className="font-semibold w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700">
             Register
           </button>
         </form>
 
         <p className="text-center text-sm mt-4 text-gray-600">
           Already have an account?{" "}
-          <button
-            onClick={() => router.push("/login")}
-            className="text-blue-600 font-medium hover:underline"
-          >
+          <button onClick={() => router.push("/login")} className="text-blue-600 font-medium hover:underline">
             Log in
           </button>
         </p>

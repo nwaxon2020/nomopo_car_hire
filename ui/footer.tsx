@@ -29,7 +29,7 @@ export default function Footer() {
     };
 
     return (
-        <footer className="bg-gray-800 text-gray-200 mt-12 px-6 py-8 shadow-inner">
+        <footer className="bg-gray-800 text-gray-200 px-6 py-8 shadow-inner">
             <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Navigation Section */}
                 <div>
