@@ -1,13 +1,19 @@
 "use client";
 
-import React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Home, BookOpen, LogIn, LogOut, Trash2, FileText } from "lucide-react";
+import { useEffect, useState } from "react";
+
+import { auth } from "../lib/firebaseConfig";
+import { signOut, onAuthStateChanged } from "firebase/auth";
+import { User } from "firebase/auth";
 
 export default function Footer() {
     const pathname = usePathname();
     const router = useRouter();
+    const [user, setUser] = useState<User | null>(null);
+    
     // Automatically generate today's date
     const lastUpdated = new Date().toLocaleDateString("en-US", {
         year: "numeric",
@@ -18,13 +24,25 @@ export default function Footer() {
     // Determine if user is on driver-profile page
     const isDriverProfile = pathname.includes("/driver-profile");
 
-    const handleLoginLogout = () => {
-        if (isDriverProfile) {
-        // Log out logic
-        // For demo, we just redirect to login page
-        router.push("/login");
+    // Listen to authentication state changes
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+            setUser(currentUser);
+        });
+
+        // Cleanup subscription on unmount
+        return () => unsubscribe();
+    }, []);
+
+    const handleLoginLogout = async () => {
+        if (user) {
+            // User is authenticated, so sign them out
+            await signOut(auth);
+            // redirect to home page or login page
+            router.push("/");
         } else {
-        router.push("/login");
+            // User is not authenticated, redirect to login
+            router.push("/login");
         }
     };
 
@@ -46,13 +64,18 @@ export default function Footer() {
                             </Link>
                         </li>
                         <li>
-                        <button
-                            onClick={handleLoginLogout}
-                            className="flex items-center gap-2 hover:text-white"
-                        >
-                            {isDriverProfile ? <LogOut size={16} /> : <LogIn size={16} />}
-                            {isDriverProfile ? "Logout" : "Login"}
-                        </button>
+                            <button
+                                onClick={handleLoginLogout}
+                                className="flex items-center gap-2 hover:text-white"
+                            >
+                                {user ? <LogOut size={16} /> : <LogIn size={16} />}
+                                {user ? "Logout" : "Login"}
+                            </button>
+                        </li>
+                        <li>
+                            <Link href="/admin" className="flex items-center gap-2 hover:text-white">
+                                <Home size={16} /> Admin
+                            </Link>
                         </li>
                     </ul>
                 </div>
@@ -62,7 +85,7 @@ export default function Footer() {
                     <h4 className="font-bold mb-2">Account & Policy</h4>
                     <ul className="space-y-1">
                         {
-                            isDriverProfile && <li>
+                            user && <li>
                                 <Link href="/delete-account" className="flex items-center gap-2 hover:text-white">
                                     <Trash2 size={16} /> Delete Account
                                 </Link>
